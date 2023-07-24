@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Force-Directed Graph with D3.js</title>
+    <script src="https://lib.baomitu.com/d3/7.8.5/d3.min.js"></script>
+  </head>
+  <body>
+    <svg width="600" height="400">
+      <g class="nodes"></g>
+    </svg>
+    <script>
+      // 假设您有节点列表和连接列表的数据
+      const nodes = [
+        { id: 'node1', name: 'Node 1' },
+        { id: 'node2', name: 'Node 2' },
+        { id: 'node3', name: 'Node 3' },
+        // ... 其他节点数据 ...
+      ]
+
+      const links = [
+        { source: 'node1', target: 'node2' },
+        { source: 'node2', target: 'node3' },
+        { source: 'node1', target: 'node3' },
+        // ... 其他连接数据 ...
+      ]
+
+      // 创建一个 SVG 容器
+      const svg = d3.select('svg')
+      const width = +svg.attr('width') //+使字符串强制转换成数字类型
+      const height = +svg.attr('height')
+
+      // 创建力导向图模拟
+      const simulation = d3
+        .forceSimulation(nodes)
+        .force(
+          'link',
+          d3
+            .forceLink(links)
+            .id((d) => d.id)
+            .distance(200)
+        )
+        .force('charge', d3.forceManyBody().strength(-100))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+
+      const link = svg
+        .append('g')
+        .attr('class', 'links')
+        .selectAll('line')
+        .data(links)
+        .enter()
+        .append('line')
+        .attr('stroke', 'red')
+
+      const node = svg
+        .select('.nodes') // 选择之前添加的 <g> 元素，用于包含所有的节点
+        .selectAll('path') // 选取 <g> 元素中的所有 <path> 元素（实际上此时还没有 <path> 元素存在）
+        .data(nodes)
+        .enter()
+        .append('path') // 添加缺失的 <path> 元素
+        .attr('d', customPath) // 设置路径命令，使用自定义函数 customPath
+        .attr('fill', 'blue')
+        .call(drag(simulation))
+
+      // 自定义函数 customPath 返回路径命令，用于描述节点的形状
+      function customPath(d) {
+        const radius = 10 // 五角星的外接圆半径
+        const x = d.x // 节点的 x 坐标
+        const y = d.y // 节点的 y 坐标
+
+        const starPoints = [] // 存储五角星的点坐标
+
+        for (let i = 0; i < 5; i++) {
+          const angle = ((Math.PI * 2) / 5) * i
+          const outerX = x + Math.cos(angle) * radius
+          const outerY = y - Math.sin(angle) * radius
+          starPoints.push([outerX, outerY])
+
+          const innerAngle = angle + Math.PI / 5
+          const innerX = x + Math.cos(innerAngle) * (radius / 2) // 内部点的 x 坐标
+          const innerY = y - Math.sin(innerAngle) * (radius / 2) // 内部点的 y 坐标
+          starPoints.push([innerX, innerY])
+        }
+
+        // 使用 SVG 路径命令绘制五角星
+        const pathCommands =
+          starPoints
+            .map((point, index) => (index === 0 ? 'M' : 'L') + point.join(','))
+            .join(' ') + 'Z'
+
+        return pathCommands
+      }
+
+      node.append('title').text((d) => d.name)
+
+      simulation.on('tick', () => {
+        link
+          .attr('x1', (d) => d.source.x)
+          .attr('y1', (d) => d.source.y)
+          .attr('x2', (d) => d.target.x)
+          .attr('y2', (d) => d.target.y)
+
+        // 更新自定义形状节点的路径命令和位置
+        node.attr('transform', (d) => `translate(${d.x},${d.y})`)
+        
+      })
+
+      // 拖拽事件处理函数
+      function drag(simulation) {
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart()
+          d.fx = d.x
+          d.fy = d.y
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x
+          d.fy = event.y
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0)
+          d.fx = null
+          d.fy = null
+        }
+
+        return d3
+          .drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended)
+      }
+    </script>
+  </body>
+</html>

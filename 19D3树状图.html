@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>D3.js Tree Demo</title>
+  <script src="https://lib.baomitu.com/d3/7.8.5/d3.min.js"></script>
+</head>
+<body>
+  <svg width="800" height="600"></svg>
+  <script>
+    const svg = d3.select('svg');
+    const width = +svg.attr('width');
+    const height = +svg.attr('height');
+    const margin = { top: 20, right: 90, bottom: 30, left: 90 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    const treeLayout = d3.tree().size([innerHeight, innerWidth]);
+
+    // Mock API function to get node information
+    function mockApiFunction(nodeId) {
+      // Replace this with your actual API call
+      return new Promise((resolve, reject) => {
+        // Mocking API call with setTimeout
+        setTimeout(() => {
+          resolve({ entityCount: 11, otherData: 'Other statistics data' });
+        }, 1000);
+      });
+    }
+
+    // Tree data
+    let treeData = {
+      name: 'Root Node',
+      children: [
+        { name: 'Child 1' },
+        { name: 'Child 2' },
+      ],
+    };
+
+    const root = d3.hierarchy(treeData);
+    const links = treeLayout(root).links();
+    const nodes = root.descendants();
+
+    const linkGroup = svg.append('g');
+    const nodeGroup = svg.append('g');
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    const link = linkGroup
+      .selectAll('.link')
+      .data(links)
+      .enter()
+      .append('path')
+      .attr('class', 'link')
+      .attr('d', d => {
+        return `M${d.source.y},${d.source.x}C${(d.source.y + d.target.y) / 2},${d.source.x} ${(d.source.y + d.target.y) / 2},${d.target.x} ${d.target.y},${d.target.x}`;
+      })
+      .style('stroke', (d, i) => color(i % 10));
+
+    const node = nodeGroup
+      .selectAll('.node')
+      .data(nodes)
+      .enter()
+      .append('g')
+      .attr('class', 'node')
+      .attr('transform', d => `translate(${d.y},${d.x})`)
+      .on('click', handleNodeClick)
+      .on('mouseover', handleNodeMouseOver)
+      .on('mouseout', handleNodeMouseOut);
+
+    node.append('circle')
+      .attr('r', 5)
+      .style('fill', (d, i) => color(i % 10))
+      .style('cursor', 'pointer');
+
+    node.append('text')
+      .attr('dy', '0.31em')
+      .attr('x', d => (d.children ? -6 : 6))
+      .style('text-anchor', d => (d.children ? 'end' : 'start'))
+      .text(d => d.data.name);
+
+    function updateTree() {
+      // Add a new child node
+      const newNode = { name: `Child ${nodes.length + 1}` };
+      if (!root.children) {
+        root.children = [];
+      }
+      root.children.push(newNode);
+      update(root);
+    }
+
+    function update(source) {
+      const treeData = treeLayout(root);
+
+      const nodes = treeData.descendants();
+      const links = treeData.links();
+
+      link.data(links)
+        .enter()
+        .append('path')
+        .attr('class', 'link')
+        .attr('d', d => {
+          return `M${source.y},${source.x}C${(source.y + d.target.y) / 2},${source.x} ${(source.y + d.target.y) / 2},${d.target.x} ${d.target.y},${d.target.x}`;
+        })
+        .merge(link)
+        .transition()
+        .duration(750)
+        .attr('d', d => {
+          return `M${d.source.y},${d.source.x}C${(d.source.y + d.target.y) / 2},${d.source.x} ${(d.source.y + d.target.y) / 2},${d.target.x} ${d.target.y},${d.target.x}`;
+        })
+        .style('stroke', (d, i) => color(i % 10));
+
+      const node = nodeGroup
+        .selectAll('.node')
+        .data(nodes, d => d.data.name);
+
+      node.exit().remove();
+
+      const newNode = node
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .style('opacity', 0)
+        .on('click', handleNodeClick)
+        .on('mouseover', handleNodeMouseOver)
+        .on('mouseout', handleNodeMouseOut);
+
+      newNode.append('circle')
+        .attr('r', 5)
+        .style('fill', (d, i) => color(i % 10))
+        .style('cursor', 'pointer')
+        .transition()
+        .duration(750)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .style('opacity', 1);
+
+      newNode.append('text')
+        .attr('dy', '0.31em')
+        .attr('x', d => (d.children ? -6 : 6))
+        .style('text-anchor', d => (d.children ? 'end' : 'start'))
+        .text(d => d.data.name)
+        .style('fill-opacity', 0)
+        .transition()
+        .duration(750)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .style('fill-opacity', 1);
+
+      node.merge(newNode)
+        .transition()
+        .duration(750)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .style('opacity', 1);
+
+      root.x0 = root.x;
+      root.y0 = root.y;
+    }
+
+    function handleNodeClick(event, d) {
+      mockApiFunction(d.data.name).then(data => {
+        console.log('接口返回的数据：', data);
+        // 在这里可以对接口返回的数据进行处理，比如显示弹出框等
+      });
+    }
+
+    function handleNodeMouseOver(event, d) {
+      const tooltip = d3.select('body')
+        .append('div')
+        .attr('class', 'tooltip')
+        .style('position', 'absolute')
+        .style('background-color', 'white')
+        .style('border', 'solid')
+        .style('border-width', '1px')
+        .style('border-radius', '5px')
+        .style('padding', '10px')
+        .style('pointer-events', 'none')
+        .style('opacity', 0);
+
+      tooltip.transition()
+        .duration(200)
+        .style('opacity', 0.9);
+
+      tooltip.html(`实体个数：${d.data.entityCount}`)
+        .style('left', (event.pageX + 10) + 'px')
+        .style('top', (event.pageY + 10) + 'px');
+    }
+
+    function handleNodeMouseOut() {
+      d3.select('.tooltip').remove();
+    }
+
+    // 动态增加节点的按钮点击事件
+    d3.select('#addNodeButton').on('click', () => {
+      updateTree();
+    });
+
+    // 初始化树状图
+    update(root);
+  </script>
+  <!-- 按钮用于动态增加节点 -->
+  <button id="addNodeButton">增加节点</button>
+</body>
+</html>

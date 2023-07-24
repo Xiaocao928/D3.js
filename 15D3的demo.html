@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Force-Directed Graph with D3.js</title>
+    <script src="https://lib.baomitu.com/d3/7.8.5/d3.min.js"></script>
+  </head>
+  <body>
+    <!-- <button id="btn" onclick="addNode()">点击添加节点</button> -->
+    <svg width="1530" height="720"></svg>
+
+    <script>
+      //节点数据
+      const nodes = [
+        {
+          id: 'node1',
+          name: 'Node 1',
+          data: 'node1的数据',
+        },
+        { id: 'node2', name: 'Node 2', data: 'node2的数据' },
+        { id: 'node3', name: 'Node 3', data: 'node2的数据' },
+        { id: 'node4', name: 'Node 4', data: 'node4的数据' },
+        { id: 'node5', name: 'Node 5', data: 'node5的数据' },
+        { id: 'node6', name: 'Node 6', data: 'node6的数据' },
+        { id: 'node7', name: 'Node 7', data: 'node7的数据' },
+        { id: 'node8', name: 'Node 8', data: 'node8的数据' },
+        { id: 'node9', name: 'Node 9', data: 'node9的数据' },
+        { id: 'node10', name: 'Node 10', data: 'node10的数据' },
+
+        // ... 其他节点数据 ...
+      ]
+      //连接数据
+      const links = [
+        { source: 'node2', target: 'node1' },
+        { source: 'node3', target: 'node1' },
+        { source: 'node4', target: 'node1' },
+        { source: 'node5', target: 'node1' },
+        { source: 'node6', target: 'node1' },
+        { source: 'node7', target: 'node1' },
+        { source: 'node8', target: 'node1' },
+        { source: 'node9', target: 'node1' },
+        { source: 'node10', target: 'node1' },
+
+        // ... 其他连接数据 ...
+      ]
+      // 将子节点与父节点相连
+
+      // 创建一个 SVG 容器
+      const svg = d3.select('svg')
+      const width = +svg.attr('width') //+使字符串强制转换成数字类型
+      const height = +svg.attr('height')
+      // 创建力导向图模拟
+      const simulation = d3
+        .forceSimulation(nodes)
+        /* link force连接力,用于约束点之间的连接,
+    d3.forceLink(links) 用于创建连接力，links 是连接列表的数据。
+    .id(d => d.id) 用于指定连接数据中表示节点标识符的字段，这里使用节点的 id 属性。
+    .distance(100) 设置连接力的连接距离，即连接的长度。*/
+        .force(
+          'link',
+          d3
+            .forceLink(links)
+            .id((d) => d.id)
+            .distance(100)
+        )
+        /*d3.forceManyBody().strength(-100)：这一行代码创建了多体力（charge force），
+      它是力导向图中的一种力，用于模拟节点之间的相互排斥和吸引。
+      d3.forceManyBody() 用于创建多体力，.strength(-100) 设置力的强度为负值，表示节点之间相互排斥的力。*/
+        .force('charge', d3.forceManyBody().strength(-100))
+        /*d3.forceCenter(width / 2, height / 2)：这一行代码创建了居中力（center force），
+      它是力导向图中的一种力，用于将节点集中在 SVG 容器的中心。*/
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide().radius(25)) // 添加节点碰撞力，设置半径为节点的半径加上一定的缓冲距离
+      const color = d3.scaleOrdinal(d3.schemeCategory10)
+
+      let link = svg
+        .append('g') // 在 SVG 容器中添加一个 <g> 元素，用于包含连接
+        .attr('class', 'links') // 给 <g> 元素设置一个 class 属性为 "links"
+        .selectAll('line') // 选取 <g> 元素中的所有 <line> 元素（实际上此时还没有 <line> 元素存在）
+        .data(links) // 将连接数据（links 数组）与选择集绑定
+        .enter() // 获取缺失的绑定元素（这里是 <line> 元素）
+        .append('line') // 添加缺失的 <line> 元素
+        .attr('stroke', (d, i) => color(i)) // 给所有的 <line> 元素设置 stroke 属性,随机颜色
+
+      let node = svg // 在 SVG 容器中添加一个 <g> 元素，用于包含所有的节点
+        .append('g') // 给 <g> 元素添加一个子 <g> 元素，用于包含所有的节点圆圈
+        .attr('class', 'nodes') // 给子 <g> 元素设置一个 class 属性为 "nodes"
+        .selectAll('circle') // 选取子 <g> 元素中的所有 <circle> 元素（实际上此时还没有 <circle> 元素存在）
+        .data(nodes) // 将节点数据（nodes 数组）与选择集绑定
+        .enter() // 获取缺失的绑定元素（这里是 <circle> 元素）
+        .append('circle') // 添加缺失的 <circle> 元素
+        .attr('r', 10) // 给所有的 <circle> 元素设置半径属性 r 为 10，即圆圈半径为 10px
+        .style('cursor', 'pointer')
+        .attr('fill', (d, i) => color(i)) // 给所有的 <circle> 元素设置填充颜色为随机颜色
+        .call(drag(simulation)) // 调用 drag 函数，使节点可拖拽，并传入力导向图模拟 simulation
+        .on('click', (event, d) => {
+          //进行点击事件监听
+          const targetId = d.id
+          addNode(targetId)
+        })
+      let nodeLabels = svg
+        .append('g')
+        .attr('class', 'node-labels')
+        .selectAll('text')
+        .data(nodes)
+        .enter()
+        .append('text')
+        .text((d) => d.name)
+        .attr('dominant-baseline', 'middle')
+        .attr('text-anchor', 'middle') //在圆圈中加上数据
+        .attr('dx', 30) // 调整文本相对于圆圈的水平偏移量
+        .attr('dy', 1) // 调整文本相对于圆圈的垂直偏移量
+        .style('font-size', '10px')
+        .style('pointer-events', 'none') // 使文本不响应鼠标事件，以允许在文本上方拖动节点
+
+      /*这行代码是给每个节点元素添加一个 <title> 元素，并设置该元素的文本内容为节点的名称（d.name）。
+      在SVG中，<title> 元素是用于为其他元素提供附加说明信息的元素。当鼠标悬停在具有<title>元素的节点上时，
+      浏览器会显示 <title> 元素中的文本内容作为提示信息，帮助用户更好地理解节点的含义。*/
+      node.append('title').text((d) => `Name: ${d.name}, Value: ${d.data}`)
+
+      simulation.on('tick', () => {
+        link = link.data(links)
+
+        // 移除多余的连接元素
+        link.exit().remove()
+
+        // 添加新的连接元素
+        const newLinkEnter = link
+          .enter()
+          .append('line')
+          .attr('stroke', (d, i) => color(i))
+          .attr('x1', (d) => d.source.x)
+          .attr('y1', (d) => d.source.y)
+          .attr('x2', (d) => d.target.x)
+          .attr('y2', (d) => d.target.y)
+
+        // 合并新的连接元素和现有的元素
+        link = newLinkEnter.merge(link)
+        //link 元素更新：
+
+        link
+          .attr('x1', (d) => d.source.x) //将连接的起始点的 x 坐标设置为连接的源节点 (source) 的 x 坐标。
+          .attr('y1', (d) => d.source.y) //将连接的起始点的 y 坐标设置为连接的源节点 (source) 的 y 坐标。
+          .attr('x2', (d) => d.target.x) //将连接的结束点的 x 坐标设置为连接的目标节点 (target) 的 x 坐标。
+          .attr('y2', (d) => d.target.y) //将连接的结束点的 y 坐标设置为连接的目标节点 (target) 的 y 坐标。
+
+        node.attr('cx', (d) => d.x).attr('cy', (d) => d.y)
+        //将节点的圆心 cx 坐标设置为节点数据 d 的 x 坐标。
+        //将节点的圆心 cy 坐标设置为节点数据 d 的 y 坐标。
+        nodeLabels
+          .attr('x', (d) => d.x) // 将标签的 x 坐标设置为节点数据 d 的 x 坐标
+          .attr('y', (d) => d.y) // 将标签的 y 坐标设置为节点数据 d 的 y 坐标
+      })
+
+      // 拖拽事件处理函数
+      function drag(simulation) {
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart()
+          d.fx = d.x
+          d.fy = d.y
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x
+          d.fy = event.y
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0)
+          d.fx = null
+          d.fy = null
+        }
+
+        return d3
+          .drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended)
+      }
+      //新增节点函数
+      function addNode(targetId) {
+        //通过for循环,向数据源中多次添加数据,实现依次添加多个子节点
+        for (let i = 0; i < 50; i++) {
+          const newNodeId = `node${nodes.length + 1}`
+          const newNodeName = `Node ${nodes.length + 1}`
+          const newNodeData = `node${nodes.length + 1}的数据`
+          const newNode = {
+            id: newNodeId,
+            name: newNodeName,
+            data: newNodeData,
+          }
+          //  const [x, y] = d3.pointer(event)
+          // newNode.x = width / 2
+          // newNode.y = height / 2
+          nodes.push(newNode)
+          links.push({ source: newNode, target: targetId })
+        }
+
+        // 更新力导向图模拟
+        simulation.nodes(nodes)
+        simulation.force(
+          'link',
+          d3
+            .forceLink(links)
+            .id((d) => d.id)
+            .distance(150)
+        )
+        simulation.alpha(0.3).restart()
+     
+        const newNodeEnter = node
+          .data(nodes)
+          .enter()
+          .append('circle')
+          .attr('r', 10)
+          .attr('fill', (d, i) => color(i))
+          .attr('cx', (d) => d.x) // 设置新节点的 cx 属性
+          .attr('cy', (d) => d.y) // 设置新节点的 cy 属性
+          .call(drag(simulation))
+          .style('cursor', 'pointer')
+          .on('click', (event, d) => {
+            //进行点击事件监听
+            const targetId = d.id
+            addNode(targetId)
+          })
+        newNodeEnter
+          .append('title') // 添加新的 <title> 元素来显示节点的名称和数据
+          .text((d) => `Name: ${d.name}, Value: ${d.data}`)
+        const newNodeLabels = nodeLabels
+          .data(nodes)
+          .enter()
+          .append('text')
+          .text((d) => d.name)
+          .attr('x', (d) => d.x)
+          .attr('y', (d) => d.y)
+          // .attr('dominant-baseline', 'middle')
+          .attr('dx', 30) // 调整文本相对于圆圈的水平偏移量
+          .attr('dy', 1) // 调整文本相对于圆圈的垂直偏移量
+          .attr('text-anchor', 'middle')
+          .style('font-size', '10px')
+          .style('pointer-events', 'none')
+        node = newNodeEnter.merge(node)
+        // link = link.merge(link)
+        nodeLabels = newNodeLabels.merge(nodeLabels)
+      }
+    </script>
+  </body>
+</html>

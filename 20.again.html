@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://lib.baomitu.com/d3/7.8.5/d3.min.js"></script>
+  </head>
+  <body>
+    <svg width="1530" height="720"></svg>
+    <script>
+      const nodes = [
+        {
+          id: 'node1',
+          name: 'Node 1',
+          data: 'node1的数据',
+        },
+        { id: 'node2', name: 'Node 2', data: 'node2的数据' },
+        { id: 'node3', name: 'Node 3', data: 'node2的数据' },
+        { id: 'node4', name: 'Node 4', data: 'node4的数据' },
+        { id: 'node5', name: 'Node 5', data: 'node5的数据' },
+        { id: 'node6', name: 'Node 6', data: 'node6的数据' },
+        { id: 'node7', name: 'Node 7', data: 'node7的数据' },
+        { id: 'node8', name: 'Node 8', data: 'node8的数据' },
+        { id: 'node9', name: 'Node 9', data: 'node9的数据' },
+        { id: 'node10', name: 'Node 10', data: 'node10的数据' },
+
+        // ... 其他节点数据 ...
+      ]
+      //连接数据
+      const links = [
+        { source: 'node2', target: 'node1' },
+        { source: 'node3', target: 'node1' },
+        { source: 'node4', target: 'node1' },
+        { source: 'node5', target: 'node1' },
+        { source: 'node6', target: 'node1' },
+        { source: 'node7', target: 'node1' },
+        { source: 'node8', target: 'node1' },
+        { source: 'node9', target: 'node1' },
+        { source: 'node10', target: 'node1' },
+
+        // ... 其他连接数据 ...
+      ]
+      //创建SVG容器
+      const svg = d3.select('svg')
+      const width = +svg.attr('width')
+      const height = +svg.attr('height')
+      const simulation = d3
+        .forceSimulation(nodes)
+        .force(
+          'link',
+          d3
+            .forceLink(links)
+            .id((d) => d.id)
+            .distance(100)
+        )
+        .force('charge', d3.forceManyBody().strength(-100))
+        .force('center', d3.forceCenter(width / 2, height / 2))
+        .force('collide', d3.forceCollide().radius(20))
+      const color = d3.scaleOrdinal(d3.schemeCategory10)
+      let link = svg
+        .append('g')
+        .attr('class', 'links')
+        .selectAll('line')
+        .data(links)
+        .enter()
+        .append('line')
+        .attr('stroke', (d, i) => color(i))
+      let node = svg
+        .append('g')
+        .attr('class', 'nodes')
+        .selectAll('circle')
+        .data(nodes)
+        .enter()
+        .append('circle')
+        .attr('r', 10)
+        .style('cursor', 'pointer')
+        .attr('fill', (d, i) => color(i))
+        .call(drag(simulation))
+        .on('click', (event, d) => {
+          const targetId = d.id
+          addNode(targetId)
+        })
+      let nodeLabels = svg
+        .append('g')
+        .attr('class', 'node-labels')
+        .selectAll('text')
+        .data(nodes)
+        .enter()
+        .append('text')
+        .text((d) => d.name)
+        .attr('dominant-baseline', 'middle')
+        .attr('text-anchor', 'middle')
+        .attr('dx', 30)
+        .attr('dy', '1')
+        .style('font-size', '10px')
+        .style('pointer-events', 'none')
+      node.append('title').text((d) => `Name:${d.name},Values:${d.data}`)
+      simulation.on('tick', () => {
+        link = link.data(links)
+        link.exit().remove()
+        const newLinkEnter = link
+          .enter()
+          .append('line')
+          .attr('stroke', (d, i) => color(i))
+          .attr('x1', (d) => d.source.x)
+          .attr('y1', (d) => d.source.y)
+          .attr('x2', (d) => d.target.x)
+          .attr('y2', (d) => d.target.y)
+        link = newLinkEnter.merge(link)
+        link
+          .attr('x1', (d) => d.source.x)
+          .attr('y1', (d) => d.source.y)
+          .attr('x2', (d) => d.target.x)
+          .attr('y2', (d) => d.target.y)
+        node.attr('cx', (d) => d.x).attr('cy', (d) => d.y)
+        nodeLabels.attr('x', (d) => d.x).attr('y', (d) => d.y)
+      })
+      function drag(simulation) {
+        function dragstarted(event, d) {
+          if (!event.active) simulation.alphaTarget(0.3).restart()
+          d.fx = d.x
+          d.fy = d.y
+        }
+
+        function dragged(event, d) {
+          d.fx = event.x
+          d.fy = event.y
+        }
+
+        function dragended(event, d) {
+          if (!event.active) simulation.alphaTarget(0)
+          d.fx = null
+          d.fy = null
+        }
+
+        return d3
+          .drag()
+          .on('start', dragstarted)
+          .on('drag', dragged)
+          .on('end', dragended)
+      }
+      function addNode(targetId) {
+        for (let i = 0; i <50; i++) {
+          console.log(1)
+          const newNodeId = `node${nodes.length + 1}`
+          const newNodeName = `Node${nodes.length + 1}`
+          const newNodeData = `node${nodes.length + 1}的数据`
+          const newNode = {
+            id: newNodeId,
+            name: newNodeName,
+            data: newNodeData,
+          }
+          nodes.push(newNode), links.push({ source: newNode, target: targetId })
+        }
+        // 更新力导向图模拟
+        simulation.nodes(nodes)
+        simulation.force(
+          'link',
+          d3
+            .forceLink(links)
+            .id((d) => d.id)
+            .distance(150)
+        )
+        simulation.alpha(0.3).restart()
+        const newNodeEnter = node
+          .data(nodes)
+          .enter()
+          .append('circle')
+          .attr('r', 10)
+          .attr('fill', (d, i) => color(i))
+          .attr('cx', (d) => d.x) // 设置新节点的 cx 属性
+          .attr('cy', (d) => d.y) // 设置新节点的 cy 属性
+          .call(drag(simulation))
+          .style('cursor', 'pointer')
+          .on('click', (event, d) => {
+            //进行点击事件监听
+            const targetId = d.id
+            addNode(targetId)
+          })
+        newNodeEnter
+          .append('title') // 添加新的 <title> 元素来显示节点的名称和数据
+          .text((d) => `Name: ${d.name}, Value: ${d.data}`)
+        const newNodeLabels = nodeLabels
+          .data(nodes)
+          .enter()
+          .append('text')
+          .text((d) => d.name)
+          .attr('x', (d) => d.x)
+          .attr('y', (d) => d.y)
+          // .attr('dominant-baseline', 'middle')
+          .attr('dx', 30) // 调整文本相对于圆圈的水平偏移量
+          .attr('dy', 1) // 调整文本相对于圆圈的垂直偏移量
+          .attr('text-anchor', 'middle')
+          .style('font-size', '10px')
+          .style('pointer-events', 'none')
+        node = newNodeEnter.merge(node)
+        // link = link.merge(link)
+        nodeLabels = newNodeLabels.merge(nodeLabels)
+      }
+    </script>
+  </body>
+</html>
